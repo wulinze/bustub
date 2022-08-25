@@ -14,16 +14,41 @@
 
 namespace bustub {
 
-LRUReplacer::LRUReplacer(size_t num_pages) {}
+LRUReplacer::LRUReplacer(size_t num_pages){}
 
 LRUReplacer::~LRUReplacer() = default;
 
-auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool { return false; }
+auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
+    std::lock_guard<std::mutex> lock(mu_);
+    if(used_frame_.empty())return false;
 
-void LRUReplacer::Pin(frame_id_t frame_id) {}
+    // least recently used page delete
+    used_frame_.erase(frames_.back());
+    *frame_id = frames_.back();
+    frames_.pop_back();
 
-void LRUReplacer::Unpin(frame_id_t frame_id) {}
+    return true;
+}
 
-auto LRUReplacer::Size() -> size_t { return 0; }
+void LRUReplacer::Pin(frame_id_t frame_id) {
+    std::lock_guard<std::mutex> lock(mu_);
+    if(used_frame_.count(frame_id)){
+        frames_.erase(used_frame_[frame_id]);
+        used_frame_.erase(frame_id);
+    }
+}
+
+void LRUReplacer::Unpin(frame_id_t frame_id) {
+    std::lock_guard<std::mutex> lock(mu_);
+    if(used_frame_.count(frame_id) == 0){
+        frames_.push_front(frame_id);
+        used_frame_[frame_id] = frames_.begin();
+    }
+}
+
+auto LRUReplacer::Size() -> size_t { 
+    std::lock_guard<std::mutex> lock(mu_);
+    return used_frame_.size();
+}
 
 }  // namespace bustub
