@@ -179,8 +179,11 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
       return false;
     }
     if(page.IsDirty()){
+      page.WLatch();
       disk_manager_->WritePage(page.page_id_, page.GetData());
+      page.WUnlatch();
     }
+    page_table_.erase(page.page_id_);
     
     DeallocatePage(page_id);
     page.ResetMemory();
@@ -192,7 +195,7 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
     free_list_.push_back(page_table_[page_id]);
     page_table_.erase(page_id);
   }
-  return false;
+  return true;
 }
 
 auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool { 
