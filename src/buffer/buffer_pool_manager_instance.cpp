@@ -127,7 +127,6 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   // 1.1
   if(this->page_table_.count(page_id)){
     auto frame_id = page_table_[page_id];
-    std::cout << page_id << ',' << frame_id << std::endl;
     replacer_->Pin(frame_id);
     pages_[frame_id].pin_count_++;
     return &pages_[frame_id];
