@@ -28,7 +28,8 @@ ParallelBufferPoolManager::~ParallelBufferPoolManager() = default;
 
 auto ParallelBufferPoolManager::GetPoolSize() -> size_t {
   // Get size of all BufferPoolManagerInstances
-  return pool_size_;
+  std::lock_guard<std::mutex> lock(latch_);
+  return pool_size_ * num_instances_;
 }
 
 auto ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) -> BufferPoolManager * {

@@ -36,7 +36,7 @@ class Matrix {
    *
    */
   Matrix(int rows, int cols): rows_(rows), cols_(cols) {
-    if(rows < 0 || cols < 0){
+    if (rows < 0 || cols < 0) {
       rows_ = cols_ = -1;
       return;
     }
@@ -101,7 +101,7 @@ class Matrix {
    * Destroy a matrix instance.
    * TODO(P0): Add implementation
    */
-  virtual ~Matrix() {delete[] linear_;};
+  virtual ~Matrix() {delete[] linear_;}
 };
 
 /**
@@ -120,7 +120,7 @@ class RowMatrix : public Matrix<T> {
    */
   RowMatrix(int rows, int cols) : Matrix<T>(rows, cols) {
     data_ = new T*[rows];
-    for(int i=0; i<rows; i++){
+    for (int i = 0; i < rows; i++) {
       data_[i] = &this->linear_[i * cols];
     }
   }
@@ -269,7 +269,7 @@ class RowMatrixOperations {
       return std::unique_ptr<RowMatrix<T>>(nullptr);
     }
 
-    auto result = std::make_unique<RowMatrix<T>>(RowA,ColB);
+    auto result = std::make_unique<RowMatrix<T>>(RowA, ColB);
     T temp;
     for (int row = 0; row < RowA; row++) {
       for (int col = 0; col < ColB; col++) {
@@ -278,7 +278,7 @@ class RowMatrixOperations {
         for (int eleIdx = 1; eleIdx < ColA; eleIdx++) {
           temp += matrixA->GetElement(row, eleIdx) * matrixB->GetElement(eleIdx, col);
         }
-        result->SetElement(row,col,temp);
+        result->SetElement(row, col, temp);
       }
     }
     return result;
@@ -295,7 +295,7 @@ class RowMatrixOperations {
   static auto GEMM(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB, const RowMatrix<T> *matrixC)
       -> std::unique_ptr<RowMatrix<T>> {
     // TODO(P0): Add implementation
-    return Add(matrixC,Multiply(matrixA,matrixB).get());
+    return Add(matrixC, Multiply(matrixA, matrixB).get());
   }
 };
 }  // namespace bustub
