@@ -28,7 +28,16 @@ auto HashTableDirectoryPage::GetGlobalDepth() -> uint32_t { return global_depth_
 
 auto HashTableDirectoryPage::GetGlobalDepthMask() -> uint32_t { return (1 << global_depth_)-1; }
 
-void HashTableDirectoryPage::IncrGlobalDepth() { global_depth_++; }
+void HashTableDirectoryPage::IncrGlobalDepth() { 
+  int origin_num = 1 << global_depth_;
+  int new_index = origin_num;
+  for (int origin_index = 0; origin_index < origin_num; new_index++, origin_index++) {
+    bucket_page_ids_[new_index] = bucket_page_ids_[origin_index];
+    local_depths_[new_index] = local_depths_[origin_index];
+  }
+  global_depth_++;
+
+}
 
 void HashTableDirectoryPage::DecrGlobalDepth() { global_depth_--; }
 

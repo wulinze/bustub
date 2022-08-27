@@ -52,12 +52,8 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
   std::lock_guard<std::mutex> lock(this->latch_);
   if(page_table_.count(page_id)){
     Page& page = pages_[page_table_[page_id]];
-    if(page.is_dirty_){
-      page.RLatch();
-      disk_manager_->WritePage(page_id, page.GetData());
-      page.RUnlatch();
-      page.is_dirty_ = false;
-    }
+    disk_manager_->WritePage(page_id, page.GetData());
+    page.is_dirty_ = false;
     return true;
   } else {
     return false;
@@ -66,8 +62,11 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
+  std::lock_guard<std::mutex> lock(this->latch_);
   for(auto&& p : page_table_){
-    FlushPgImp(p.first);
+    Page& page = pages_[p.second];
+    disk_manager_->WritePage(page.page_id_, page.GetData());
+    page.is_dirty_ = false;
   }
 }
 
@@ -80,37 +79,36 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   
   // thread safe
   std::lock_guard<std::mutex> lock(this->latch_);
-  frame_id_t frame_id;
+  frame_id_t frame_id = -1;
   // Allocate new Page ID
-  if(!this->free_list_.empty()){
+  if (!free_list_.empty()) {
     // Get frame from free_list_
-    frame_id = this->free_list_.front();
-    this->free_list_.pop_front();
-  } else if(!replacer_->Victim(&frame_id)){
+    frame_id = free_list_.front();
+    free_list_.pop_front();
+  } else if (!replacer_->Victim(&frame_id)) {
     return nullptr;
   }
 
-  if(pages_[frame_id].is_dirty_){
-    pages_[frame_id].RLatch();
-    disk_manager_->WritePage(pages_[frame_id].page_id_, 
-          pages_[frame_id].GetData());
-    pages_[frame_id].RUnlatch();
+  if(frame_id != -1){
+    Page& page = pages_[frame_id];
+    if(page.is_dirty_){
+      disk_manager_->WritePage(page.page_id_, 
+            page.GetData());
+    }
+    page_table_.erase(page.page_id_);
+    
+    *page_id = AllocatePage();
+    page_table_[*page_id] = frame_id;
+    // Set metaData
+    page.page_id_ = *page_id;
+    page.is_dirty_ = false;
+    page.pin_count_ = 1;
+    page.ResetMemory();
+    replacer_->Pin(frame_id);
+    return &pages_[frame_id];
   }
-  page_table_.erase(pages_[frame_id].page_id_);
-  
-  *page_id = AllocatePage();
-  page_table_[*page_id] = frame_id;
-  // Set metaData
-  pages_[frame_id].page_id_ = *page_id;
-  pages_[frame_id].is_dirty_ = false;
-  pages_[frame_id].pin_count_ = 1;
-  replacer_->Pin(frame_id);
 
-  pages_[frame_id].ResetMemory();
-  pages_[frame_id].RLatch();
-  disk_manager_->WritePage(*page_id, pages_[frame_id].GetData());
-  pages_[frame_id].RUnlatch();
-  return &pages_[frame_id];
+  return nullptr;
 }
 
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
@@ -141,23 +139,21 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
       return nullptr;
     }
 
-    Page& R = pages_[frame_id];
-    if(R.IsDirty()){
-      R.RLatch();
-      disk_manager_->WritePage(R.page_id_, R.GetData());
-      R.RUnlatch();
+    Page& page = pages_[frame_id];
+    if(page.IsDirty()){
+      disk_manager_->WritePage(page.page_id_, page.GetData());
     }
-    if(page_table_.count(R.page_id_)) page_table_.erase(R.page_id_);
+    if(page_table_.count(page.page_id_)) page_table_.erase(page.page_id_);
+
+    page.is_dirty_ = false;
+    page.page_id_ = page_id;
+    page.pin_count_ = 1;
 
     page_table_[page_id] = frame_id;
-    R.ResetMemory();
-    disk_manager_->ReadPage(page_id, R.data_);
-    R.is_dirty_ = false;
-    R.page_id_ = page_id;
-    R.pin_count_ = 1;
+    disk_manager_->ReadPage(page_id, page.GetData());
     replacer_->Pin(frame_id);
 
-    return &R;
+    return &page;
   }
 }
 
