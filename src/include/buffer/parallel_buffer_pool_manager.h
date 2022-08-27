@@ -16,7 +16,6 @@
 #include "recovery/log_manager.h"
 #include "storage/disk/disk_manager.h"
 #include "storage/page/page.h"
-#include "buffer_pool_manager_instance.h"
 
 namespace bustub {
 
@@ -91,7 +90,7 @@ class ParallelBufferPoolManager : public BufferPoolManager {
   size_t num_instances_;
   size_t pool_size_;
   size_t next_instance_ = 0;
-  std::vector<BufferPoolManagerInstance*> bpmInstances_;
+  BufferPoolManager** managers_;
   std::mutex latch_;
 
 };

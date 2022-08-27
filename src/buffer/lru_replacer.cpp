@@ -23,8 +23,8 @@ auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
     if(used_frame_.empty())return false;
 
     // least recently used page delete
-    used_frame_.erase(frames_.back());
     *frame_id = frames_.back();
+    used_frame_.erase(*frame_id);
     frames_.pop_back();
 
     return true;
@@ -40,7 +40,7 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
     std::lock_guard<std::mutex> lock(mu_);
-    if(used_frame_.count(frame_id) == 0){
+    if(!used_frame_.count(frame_id)){
         frames_.push_front(frame_id);
         used_frame_[frame_id] = frames_.begin();
     }
