@@ -96,6 +96,28 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
   table_latch_.WLock();
 
+  auto dir_page = FetchDirectoryPage();
+  auto global_depth = dir_page->GetGlobalDepth();
+  auto bucket_idx = KeyToDirectoryIndex(key, dir_page);
+  auto local_depth = dir_page->GetLocalDepth(bucket_idx);
+  auto split_idx = dir_page->GetSplitImageIndex(bucket_idx);
+
+  if(local_depth >= 9){
+    assert(buffer_pool_manager_->UnpinPage(dir_page->GetPageId(), false));
+    table_latch_.WUnlock();
+    return false;
+  }
+
+  if (local_depth < global_depth) {
+    local_depth++;
+    dir_page->SetLocalDepth(bucket_idx, local_depth);
+  } else {
+    // update global depth
+    dir_page->IncrGlobalDepth();
+  }
+
+  
+
   table_latch_.WUnlock();
   return Insert(transaction, key, value);
 }
@@ -112,7 +134,6 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
     return false;
   } else if (bucket_page->isEmpty()) {
     table_latch_.RUnlock();
-
   }
 
   return true;
@@ -122,7 +143,9 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
  * MERGE
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
-void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const ValueType &value) {}
+void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const ValueType &value) {
+
+}
 
 /*****************************************************************************
  * GETGLOBALDEPTH - DO NOT TOUCH
