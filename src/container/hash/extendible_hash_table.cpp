@@ -46,22 +46,24 @@ auto HASH_TABLE_TYPE::Hash(KeyType key) -> uint32_t {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToDirectoryIndex(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
-  return 0;
+  return Hash(key) & dir_page->GetGlobalDepthMask();
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToPageId(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
-  return 0;
+  return static_cast<uint32_t>(dir_page->GetBucketPageId(KeyToDirectoryIndex(key, dir_page)));
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::FetchDirectoryPage() -> HashTableDirectoryPage * {
-  return nullptr;
+  std::lock_guard<std::mutex> guard(page_lock);
+  return reinterpret_cast<HashTableDirectoryPage *> buffer_pool_manager_->FetchPage(directory_page_id_);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BUCKET_TYPE * {
-  return nullptr;
+  std::lock_guard<std::mutex> guard(page_lock);
+  return reinterpret_cast<HASH_TABLE_BUCKET_TYPE*> buffer_pool_manager_->FetchPage(bucket_page_id);
 }
 
 /*****************************************************************************
@@ -69,7 +71,9 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std::vector<ValueType> *result) -> bool {
-  return false;
+  auto bucket_page = FetchBucketPage(KeyToPageId(key));
+
+  return bucket_page->GetValue(key, result);
 }
 
 /*****************************************************************************
@@ -77,12 +81,23 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
-  return false;
+  table_latch_.RLock();
+
+  auto bucket_page = FetchBucketPage(KeyToPageId(key));
+  if (!bucket_page->Insert(key, value)) {
+    table_latch_.RUnlock();
+    return SplitInsert(transaction, key, value);
+  }
+
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
-  return false;
+  table_latch_.WLock();
+
+  table_latch_.WUnlock();
+  return Insert(transaction, key, value);
 }
 
 /*****************************************************************************
@@ -90,7 +105,17 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
-  return false;
+  table_latch_.RLock();
+  auto bucket_page = FetchBucketPage(KeyToPageId(key));
+
+  if (!bucket_page->Remove(key, value)) {
+    return false;
+  } else if (bucket_page->isEmpty()) {
+    table_latch_.RUnlock();
+
+  }
+
+  return true;
 }
 
 /*****************************************************************************
