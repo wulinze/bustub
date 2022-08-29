@@ -66,7 +66,7 @@ void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) { local_depths_
 auto HashTableDirectoryPage::GetLocalHighBit(uint32_t bucket_idx) -> uint32_t { return bucket_idx & (1 << local_depths_[bucket_idx]); }
 
 auto HashTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) -> uint32_t{
-  return (1 << local_depths_[bucket_idx]) ^ bucket_idx ;
+  return (1 << local_depths_[bucket_idx]-1) ^ bucket_idx ;
 }
 
 /**
