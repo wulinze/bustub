@@ -193,13 +193,22 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
   auto cur_bucket_idx = KeyToDirectoryIndex(key);
   auto split_bucket_idx = dir_page->GetSplitImageIndex(cur_bucket_idx);
 
+  int cur_depth = dir_page->GetLocalDepth(cur_bucket_idx);
+  char cur_mask = cur_bucket_idx & ((1 << dir_page->GetLocalDepth(cur_bucket_idx)) - 1);
+  char split_mask = split_bucket_idx & ((1 << dir_page->GetLocalDepth(split_bucket_idx)) - 1);
+
   if(cur_bucket_idx > dir_page->Size()){
     table_latch_.WUnlock();
     return;
   }
 
-  for(int i=0; i < dir_page->Size(); i++){
-    
+  for(uint32_t i=0; i < dir_page->Size(); i++){
+    if (i & cur_mask == cur_mask && i | cur_mask == i) {
+      dir_page->SetLocalDepth(cur_depth-1);
+    } else if (i & cur_mask == cur_mask && i | cur_mask == i) {
+      dir_page->SetLocalDepth(cur_depth-1);
+      dir_page->SetBucketPageId(i, dir_page->GetBucketPageId(split_bucket_idx));
+    }
   }
 
   while (dir_page->CanShrink()) {
