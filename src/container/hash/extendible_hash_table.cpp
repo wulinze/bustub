@@ -137,8 +137,6 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
   assert(buffer_pool_manager_->UnpinPage(page_id, true));
   table_latch_.RUnlock();
-  std::cout << "key=" << key << ", value=" << value << std::endl;
-  LOG_DEBUG("Split");
   return SplitInsert(transaction, key, value);
 }
 
@@ -162,6 +160,7 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
   auto origin_bucket_page = ToBucketPage(origin_page);
 
   dir_page->IncrLocalDepth(bucket_idx);
+  local_depth++;
   if (local_depth > global_depth) {
     // update global depth
     dir_page->IncrGlobalDepth();
@@ -173,16 +172,7 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
   auto split_bucket_page = ToBucketPage(split_page); 
   dir_page->SetBucketPageId(split_bucket_id, split_page_id);  
 
-  uint32_t diff = 1 << dir_page->GetLocalDepth(split_bucket_id);
-  for(uint32_t i=split_bucket_id; i >= diff; i-=diff){
-    dir_page->SetBucketPageId(i, split_page_id);
-    dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(split_bucket_id));
-  }
-  for(uint32_t i=split_bucket_id; i < dir_page->Size(); i+=diff){
-    dir_page->SetBucketPageId(i, split_page_id);
-    dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(split_bucket_id));
-  }
-
+  uint32_t diff = 1 << dir_page->GetLocalDepth(bucket_idx);
   for(uint32_t i=bucket_idx; i >= diff; i-=diff){
     dir_page->SetBucketPageId(i, origin_page_id);
     dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(bucket_idx));
@@ -192,11 +182,20 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
     dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(bucket_idx));
   }
 
+  for(uint32_t i=split_bucket_id; i >= diff; i-=diff){
+    dir_page->SetBucketPageId(i, split_page_id);
+    dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(bucket_idx));
+  }
+  for(uint32_t i=split_bucket_id; i < dir_page->Size(); i+=diff){
+    dir_page->SetBucketPageId(i, split_page_id);
+    dir_page->SetLocalDepth(i, dir_page->GetLocalDepth(bucket_idx));
+  }
+
   origin_page->WLatch();
   for (uint32_t i=0; i < origin_bucket_page->NumReadable(); i++) {
     auto old_key = origin_bucket_page->KeyAt(i);
     auto old_value = origin_bucket_page->ValueAt(i);
-    auto newBucketId = KeyToDirectoryIndex(key, dir_page);
+    auto newBucketId = KeyToDirectoryIndex(old_key, dir_page);
     if (newBucketId != bucket_idx) {
       origin_bucket_page->RemoveAt(i);
       split_bucket_page->Insert(old_key, old_value, comparator_);
