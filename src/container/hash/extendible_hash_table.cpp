@@ -96,15 +96,19 @@ auto HASH_TABLE_TYPE::ToBucketPage(Page* page) -> HASH_TABLE_BUCKET_TYPE * {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std::vector<ValueType> *result) -> bool {
   table_latch_.RLock();
-  auto page_id = KeyToPageId(key, FetchDirectoryPage());
+  auto dir_page = FetchDirectoryPage();
+  auto page_id = KeyToPageId(key, dir_page);
   auto page = FetchBucketPage(page_id);
-  auto bucket_page = ToBucketPage(page);
+
   page->RLatch();
+  auto bucket_page = ToBucketPage(page);
   auto res = bucket_page->GetValue(key, comparator_, result);
   page->RUnlatch();
-  table_latch_.RUnlock();
+
   assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
   assert(buffer_pool_manager_->UnpinPage(page_id, false));
+
+  table_latch_.RUnlock();
   return res;
 }
 
@@ -118,22 +122,24 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   auto dir_page = FetchDirectoryPage();
   auto page_id = KeyToPageId(key, dir_page);
   auto page = FetchBucketPage(page_id);
-  auto bucket_page = ToBucketPage(page);
+
   page->WLatch();
-  if (!bucket_page->Insert(key, value, comparator_)) {
-    table_latch_.RUnlock();
+  auto bucket_page = ToBucketPage(page);
+  if (!bucket_page->IsFull()) {
     page->WUnlatch();
-    if(bucket_page->IsFull()){
-      return SplitInsert(transaction, key, value);
-    } else {
-      return false;
-    }
+    assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
+    assert(buffer_pool_manager_->UnpinPage(page_id, true));
+    table_latch_.RUnlock();
+    return bucket_page->Insert(key, value, comparator_);
   }
 
   page->WUnlatch();
   assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
   assert(buffer_pool_manager_->UnpinPage(page_id, true));
-  return true;
+  table_latch_.RUnlock();
+  std::cout << "key=" << key << ", value=" << value << std::endl;
+  LOG_DEBUG("Split");
+  return SplitInsert(transaction, key, value);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -143,17 +149,17 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
   auto dir_page = FetchDirectoryPage();
   auto global_depth = dir_page->GetGlobalDepth();
   auto bucket_idx = KeyToDirectoryIndex(key, dir_page);
-  auto origin_page_id = KeyToPageId(key, dir_page);
-  auto origin_page = FetchBucketPage(origin_page_id);
-  auto origin_bucket_page = ToBucketPage(origin_page);
   auto local_depth = dir_page->GetLocalDepth(bucket_idx);
 
   if(local_depth >= 9){
-    assert(buffer_pool_manager_->UnpinPage(dir_page->GetPageId(), false));
-    assert(buffer_pool_manager_->UnpinPage(origin_page->GetPageId(), false));
+    assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
     table_latch_.WUnlock();
     return false;
   }
+
+  auto origin_page_id = KeyToPageId(key, dir_page);
+  auto origin_page = FetchBucketPage(origin_page_id);
+  auto origin_bucket_page = ToBucketPage(origin_page);
 
   dir_page->IncrLocalDepth(bucket_idx);
   if (local_depth > global_depth) {

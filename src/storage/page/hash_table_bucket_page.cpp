@@ -44,7 +44,6 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
     }
   }
   
-  std::cout << "slot is " << slot << std::endl;
   if (slot == -1) {
     LOG_DEBUG("Bucket is full");
     return false;
