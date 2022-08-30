@@ -225,7 +225,7 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   page->WLatch();
   if (!bucket_page->Remove(key, value, comparator_)) {
     page->WUnlatch();
-    assert(buffer_pool_manager_->UnpinPage(bucket_id, false));
+    assert(buffer_pool_manager_->UnpinPage(page_id, false));
     return false;
   } else if (bucket_page->IsEmpty()) {
     auto dir_page = FetchDirectoryPage();
@@ -233,12 +233,13 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
     table_latch_.RUnlock();
     if (dir_page->GetLocalDepth(bucket_id) != 0 && 
     dir_page->GetLocalDepth(dir_page->GetSplitImageIndex(bucket_id)) == local_depth) {
-      assert(buffer_pool_manager_->UnpinPage(bucket_id, true));
+      assert(buffer_pool_manager_->UnpinPage(page_id, true));
       page->WUnlatch();
       Merge(transaction, key, value);
     }
   }
 
+  assert(buffer_pool_manager_->UnpinPage(page_id, false));
   page->WUnlatch();
   table_latch_.RUnlock();
   return true;
