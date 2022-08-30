@@ -29,7 +29,7 @@ auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
     }
   }
   
-  return result.size() > size;
+  return result->size() > size;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -44,6 +44,7 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
     }
   }
   
+  std::cout << "slot is " << slot << std::endl;
   if (slot == -1) {
     LOG_DEBUG("Bucket is full");
     return false;

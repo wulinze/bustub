@@ -132,9 +132,17 @@ class ExtendibleHashTable {
    * Fetches the a bucket page from the buffer pool manager using the bucket's page_id.
    *
    * @param bucket_page_id the page_id to fetch
+   * @return a pointer to a page
+   */
+  auto FetchBucketPage(page_id_t bucket_page_id) -> Page *;
+
+  /**
+   * .
+   *
+   * @param page the page to cast
    * @return a pointer to a bucket page
    */
-  auto FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BUCKET_TYPE *;
+  auto ToBucketPage(Page* page) -> HASH_TABLE_BUCKET_TYPE *;
 
   /**
    * Performs insertion with an optional bucket splitting.
@@ -163,7 +171,7 @@ class ExtendibleHashTable {
 
   std::mutex page_lock;
   // member variables
-  page_id_t directory_page_id_;
+  page_id_t directory_page_id_ = INVALID_PAGE_ID;
   BufferPoolManager *buffer_pool_manager_;
   KeyComparator comparator_;
 
