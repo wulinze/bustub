@@ -45,20 +45,19 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
   }
   
   if (slot == -1) {
-    LOG_DEBUG("Bucket is full");
+    LOG_DEBUG("Bucket Full");
     return false;
   }
 
   array_[slot] = MappingType(key, value);
   SetOccupied(slot);
   SetReadable(slot);
-
   return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool {
-  for(long unsigned int i=0; i<BUCKET_ARRAY_SIZE; i++){
+  for(uint32_t i=0; i<BUCKET_ARRAY_SIZE; i++){
     if(IsReadable(i) && cmp(key, array_[i].first) == 0 && value == array_[i].second){
       ReSetReadable(i);
       return true;
