@@ -169,7 +169,7 @@ class ExtendibleHashTable {
    */
   void Merge(Transaction *transaction, const KeyType &key, const ValueType &value);
 
-  std::mutex page_lock;
+  std::mutex page_lock_;
   // member variables
   page_id_t directory_page_id_ = INVALID_PAGE_ID;
   BufferPoolManager *buffer_pool_manager_;
