@@ -51,7 +51,7 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
   }
 
   if (slot == -1) {
-    // LOG_DEBUG("Bucket Full");
+    LOG_DEBUG("Bucket Full");
     return false;
   }
 
@@ -68,7 +68,7 @@ auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator 
       return false;
     }
     if (IsReadable(i) && cmp(key, array_[i].first) == 0 && value == array_[i].second) {
-      ReSetReadable(i);
+      RemoveAt(i);
       return true;
     }
   }
@@ -123,7 +123,7 @@ void HASH_TABLE_BUCKET_TYPE::ReSetReadable(uint32_t bucket_idx) {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::IsFull() -> bool {
-  for (uint64_t i = 0; i < (BUCKET_ARRAY_SIZE - 1) / 8 + 1; i++) {
+  for (uint64_t i = 0; i < BUCKET_ARRAY_SIZE / 8; i++) {
     uint8_t byte = static_cast<uint8_t>(readable_[i]);
     if ((byte & 0xff) != 0xff) {
       return false;
@@ -137,7 +137,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::NumReadable() -> uint32_t {
   uint32_t ans = 0;
 
-  for (uint64_t i = 0; i < (BUCKET_ARRAY_SIZE - 1) / 8 + 1; i++) {
+  for (uint64_t i = 0; i < BUCKET_ARRAY_SIZE / 8; i++) {
     uint8_t byte = static_cast<uint8_t>(readable_[i]);
     while (byte != 0x00) {
       byte &= byte - 0x01;
@@ -150,7 +150,7 @@ auto HASH_TABLE_BUCKET_TYPE::NumReadable() -> uint32_t {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::IsEmpty() -> bool {
-  for (uint64_t i = 0; i < (BUCKET_ARRAY_SIZE - 1) / 8 + 1; i++) {
+  for (uint64_t i = 0; i < BUCKET_ARRAY_SIZE / 8; i++) {
     uint8_t byte = static_cast<uint8_t>(readable_[i]);
     if (byte != 0) {
       return false;
@@ -164,7 +164,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::GetArrayCopy() -> MappingType * {
   uint32_t num = NumReadable();
   MappingType *copy = new MappingType[num];
-  for (uint32_t i = 0, index = 0; i < BUCKET_ARRAY_SIZE; i++) {
+  for (uint32_t i = 0, index = 0; i < num; i++) {
     if (IsReadable(i)) {
       copy[index++] = array_[i];
     }

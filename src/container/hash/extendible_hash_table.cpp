@@ -128,9 +128,9 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
 
   if (!bucket_page->IsFull()) {
     auto res = bucket_page->Insert(key, value, comparator_);
-    page->WUnlatch();
     assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
     assert(buffer_pool_manager_->UnpinPage(page_id, true));
+    page->WUnlatch();
     table_latch_.RUnlock();
     return res;
   }
@@ -226,37 +226,24 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   table_latch_.RLock();
   auto dir_page = FetchDirectoryPage();
   auto page_id = KeyToPageId(key, dir_page);
-  auto bucket_id = KeyToDirectoryIndex(key, dir_page);
   auto page = FetchBucketPage(page_id);
-  auto bucket_page = ToBucketPage(page);
 
   assert(page != nullptr);
   page->WLatch();
+  auto bucket_page = ToBucketPage(page);
   auto res = bucket_page->Remove(key, value, comparator_);
-  if (!res) {
+  if (bucket_page->IsEmpty()) {
     page->WUnlatch();
-    table_latch_.RUnlock();
     assert(buffer_pool_manager_->UnpinPage(page_id, false));
-  } else if (bucket_page->IsEmpty()) {
-    auto dir_page = FetchDirectoryPage();
-    auto local_depth = dir_page->GetLocalDepth(bucket_id);
-    if (dir_page->GetLocalDepth(bucket_id) != 0 &&
-        dir_page->GetLocalDepth(dir_page->GetSplitImageIndex(bucket_id)) == local_depth) {
-      assert(buffer_pool_manager_->UnpinPage(page_id, true));
-      page->WUnlatch();
-      table_latch_.RUnlock();
-      Merge(transaction, key, value);
-    } else {
-      assert(buffer_pool_manager_->UnpinPage(page_id, true));
-      page->WUnlatch();
-      table_latch_.RUnlock();
-    }
-  } else {
-    assert(buffer_pool_manager_->UnpinPage(page_id, true));
-    page->WUnlatch();
     table_latch_.RUnlock();
+    VerifyIntegrity();
+    Merge(transaction, key, value);
+    return res;
   }
-
+  page->WUnlatch();
+  assert(buffer_pool_manager_->UnpinPage(page_id, true));
+  assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
+  table_latch_.RUnlock();
   return res;
 }
 
@@ -267,22 +254,36 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const ValueType &value) {
   table_latch_.WLock();
   auto dir_page = FetchDirectoryPage();
-  auto cur_page_id = KeyToPageId(key, dir_page);
-  auto cur_page = FetchBucketPage(cur_page_id);
-  auto cur_bucket_page = ToBucketPage(cur_page);
   auto cur_bucket_idx = KeyToDirectoryIndex(key, dir_page);
-  auto split_bucket_idx = dir_page->GetSplitImageIndex(cur_bucket_idx);
+  auto cur_depth = dir_page->GetLocalDepth(cur_bucket_idx);
 
-  int cur_depth = dir_page->GetLocalDepth(cur_bucket_idx);
-  uint32_t cur_mask = cur_bucket_idx & ((1 << dir_page->GetLocalDepth(cur_bucket_idx)) - 1);
-  uint32_t split_mask = split_bucket_idx & ((1 << dir_page->GetLocalDepth(split_bucket_idx)) - 1);
-
-  if (cur_bucket_idx > dir_page->Size()) {
+  if (cur_bucket_idx >= dir_page->Size()) {
+    assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
     table_latch_.WUnlock();
     return;
   }
 
+  if (cur_depth == 0) {
+    assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
+    table_latch_.WUnlock();
+    return;
+  }
+
+  auto split_bucket_idx = dir_page->GetSplitImageIndex(cur_bucket_idx);
+  auto split_page_id = dir_page->GetBucketPageId(split_bucket_idx);
+  auto split_depth = dir_page->GetLocalDepth(split_bucket_idx);
+
+  if (cur_depth != split_depth) {
+    assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false));
+    table_latch_.WUnlock();
+    return;
+  }
+
+  auto cur_page_id = dir_page->GetBucketPageId(cur_bucket_idx);
+  auto cur_page = FetchBucketPage(cur_page_id);
+
   cur_page->RLatch();
+  auto cur_bucket_page = ToBucketPage(cur_page);
   if (!cur_bucket_page->IsEmpty()) {
     // bucket is not empty
     cur_page->RUnlatch();
@@ -291,15 +292,20 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
     table_latch_.WUnlock();
     return;
   }
-  assert(buffer_pool_manager_->UnpinPage(cur_page_id, false));
   cur_page->RUnlatch();
+  assert(buffer_pool_manager_->UnpinPage(cur_page_id, false));
+  assert(buffer_pool_manager_->DeletePage(cur_page_id));
+
+  uint32_t all_one = (1 << cur_depth) - 1;
+  uint32_t cur_mask = cur_bucket_idx & all_one;
+  uint32_t split_mask = split_bucket_idx & all_one;
 
   auto size = dir_page->Size();
   for (uint32_t i = 0; i < size; i++) {
-    if ((i & cur_mask) == cur_mask && (i | cur_mask) == cur_mask) {
+    if (((i ^ cur_mask) & all_one) == 0) {
       dir_page->SetLocalDepth(i, cur_depth - 1);
-      dir_page->SetBucketPageId(i, dir_page->GetBucketPageId(split_bucket_idx));
-    } else if ((i & split_mask) == split_mask && (i | split_mask) == split_mask) {
+      dir_page->SetBucketPageId(i, split_page_id);
+    } else if (((i ^ split_mask) & all_one) == 0) {
       dir_page->SetLocalDepth(i, cur_depth - 1);
     }
   }
