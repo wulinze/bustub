@@ -12,10 +12,10 @@
 
 #pragma once
 
+#include <iostream>
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
-#include <iostream>
 
 #include "buffer/buffer_pool_manager.h"
 #include "buffer/lru_replacer.h"

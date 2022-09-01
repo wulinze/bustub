@@ -142,7 +142,7 @@ class ExtendibleHashTable {
    * @param page the page to cast
    * @return a pointer to a bucket page
    */
-  auto ToBucketPage(Page* page) -> HASH_TABLE_BUCKET_TYPE *;
+  auto ToBucketPage(Page *page) -> HASH_TABLE_BUCKET_TYPE *;
 
   /**
    * Performs insertion with an optional bucket splitting.

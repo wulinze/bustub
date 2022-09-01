@@ -90,8 +90,7 @@ class ParallelBufferPoolManager : public BufferPoolManager {
   size_t num_instances_;
   size_t pool_size_;
   size_t next_instance_ = 0;
-  BufferPoolManager** managers_;
+  BufferPoolManager **managers_;
   std::mutex latch_;
-
 };
 }  // namespace bustub

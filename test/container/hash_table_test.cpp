@@ -24,7 +24,7 @@ namespace bustub {
 // NOLINTNEXTLINE
 
 // NOLINTNEXTLINE
-TEST(HashTableTest, DISABLED_SampleTest) {
+TEST(HashTableTest, SampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -117,7 +117,7 @@ TEST(HashTableTest, DISABLED_SampleTest) {
   delete bpm;
 }
 
-TEST(HashTableTest, DISABLED_OwnTest) {
+TEST(HashTableTest, OwnTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -143,7 +143,7 @@ TEST(HashTableTest, DISABLED_OwnTest) {
 
 #define EACH_BUCKET_SIZE 496
 
-TEST(HashTableTest, DISABLED_GrowShrinkTest1) {
+TEST(HashTableTest, GrowShrinkTest1) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(4, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -177,7 +177,7 @@ TEST(HashTableTest, DISABLED_GrowShrinkTest1) {
   delete bpm;
 }
 
-TEST(HashTableTest, DISABLED_GrowShrinkTest2) {
+TEST(HashTableTest, GrowShrinkTest2) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(20, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -240,7 +240,7 @@ TEST(HashTableTest, DISABLED_GrowShrinkTest2) {
   delete bpm;
 }
 
-TEST(HashTableTest, DISABLED_LargeInsertTest) {
+TEST(HashTableTest, LargeInsertTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(30, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -301,7 +301,7 @@ TEST(HashTableTest, DISABLED_LargeInsertTest) {
   delete bpm;
 }
 
-TEST(HashTableTest, DISABLED_SplitInsertTest) {
+TEST(HashTableTest, SplitInsertTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(30, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -827,7 +827,7 @@ TEST(HashTableTest, DISABLED_RemoveTest) {
   GenericTestCall<GenericKey<64>, RID, GenericComparator<64>>(RemoveTestCall);
 }
 
-TEST(HashTableTest, SplitGrowTest) {
+TEST(HashTableTest, DISABLED_SplitGrowTest) {
   SplitGrowTestCall(1, 1, IntComparator());
 
   GenericTestCall<GenericKey<8>, RID, GenericComparator<8>>(SplitGrowTestCall);

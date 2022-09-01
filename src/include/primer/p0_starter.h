@@ -35,7 +35,7 @@ class Matrix {
    * @param cols The number of columns
    *
    */
-  Matrix(int rows, int cols): rows_(rows), cols_(cols) {
+  Matrix(int rows, int cols) : rows_(rows), cols_(cols) {
     if (rows < 0 || cols < 0) {
       rows_ = cols_ = -1;
       return;
@@ -101,7 +101,7 @@ class Matrix {
    * Destroy a matrix instance.
    * TODO(P0): Add implementation
    */
-  virtual ~Matrix() {delete[] linear_;}
+  virtual ~Matrix() { delete[] linear_; }
 };
 
 /**
@@ -119,7 +119,7 @@ class RowMatrix : public Matrix<T> {
    * @param cols The number of columns
    */
   RowMatrix(int rows, int cols) : Matrix<T>(rows, cols) {
-    data_ = new T*[rows];
+    data_ = new T *[rows];
     for (int i = 0; i < rows; i++) {
       data_[i] = &this->linear_[i * cols];
     }
@@ -201,7 +201,7 @@ class RowMatrix : public Matrix<T> {
    *
    * Destroy a RowMatrix instance.
    */
-  ~RowMatrix() override {delete[] data_;};
+  ~RowMatrix() override { delete[] data_; };
 
  private:
   /**

@@ -11,9 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include <cstdio>
+#include <iostream>
 #include <thread>  // NOLINT
 #include <vector>
-#include <iostream>
 
 #include "buffer/lru_replacer.h"
 #include "gtest/gtest.h"
