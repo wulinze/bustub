@@ -84,6 +84,8 @@ class ExtendibleHashTable {
    */
   void VerifyIntegrity();
 
+  auto Size() -> uint32_t;
+
  private:
   /**
    * Hash - simple helper to downcast MurmurHash's 64-bit hash to 32-bit

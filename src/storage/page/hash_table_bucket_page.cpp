@@ -24,6 +24,9 @@ auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
   auto size = result->size();
 
   for (uint64_t i = 0; i < BUCKET_ARRAY_SIZE; i++) {
+    if (!IsOccupied(i)) {
+      break;
+    }
     if (IsReadable(i) && cmp(key, array_[i].first) == 0) {
       result->push_back(array_[i].second);
     }
@@ -164,9 +167,9 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::GetArrayCopy() -> MappingType * {
   uint32_t num = NumReadable();
   MappingType *copy = new MappingType[num];
-  for (uint32_t i = 0, index = 0; i < num; i++) {
+  for (uint32_t i = 0; i < num; i++) {
     if (IsReadable(i)) {
-      copy[index++] = array_[i];
+      copy[i] = array_[i];
     }
   }
   return copy;
