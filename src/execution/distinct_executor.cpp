@@ -16,10 +16,30 @@ namespace bustub {
 
 DistinctExecutor::DistinctExecutor(ExecutorContext *exec_ctx, const DistinctPlanNode *plan,
                                    std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), 
+    plan_(plan), 
+    child_executor_(child_executor),
+    dht_iterator_(hdt.Begin()) {}
 
-void DistinctExecutor::Init() {}
+void DistinctExecutor::Init() {
+    child_executor_->Init();
 
-auto DistinctExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+    Tuple tmp_tuple;
+    RID tmp_rid;
+    while (child_executor_->Next(&tmp_tuple, &tmp_rid)) {
+        dht_.Insert(MakeDistinctKey(&tmp_tuple), tmp_tuple);
+    }
+    dht_iterator_ = dht_.Begin();
+}
+
+auto DistinctExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+    if (dht_iterator_ == dht_.End()) {
+        return false;
+    }
+    *tuple = dht_iterator_.Val();
+    *rid = tuple->GetRid();
+    ++dht_iterator_;
+    return true;
+}
 
 }  // namespace bustub
